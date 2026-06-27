@@ -15,7 +15,7 @@ export const setupChatSockets = (io: Server) => {
       await prisma.user.update({ where: { id: userId }, data: { isOnline: true, lastSeen: new Date() } }).catch(() => {});
       io.emit('user_online', { userId, isOnline: true });
     });
-Q
+
     // ─── Get user status (новый обработчик) ─────────────────────────────
     socket.on('get_user_status', async ({ userId }: { userId: string }) => {
       const u = await prisma.user.findUnique({ where: { id: userId }, select: { isOnline: true, lastSeen: true } }).catch(() => null);
@@ -54,16 +54,18 @@ Q
         data: {
           content: `[Подарок: ${data.giftName}]`,
           type: 'gift',
+          giftName: data.giftName || 'Подарок',
+          giftIcon: data.giftIcon || 'cake',
           senderId: data.senderId,
           receiverId: data.receiverId,
           isRead: false,
         },
         include: { sender: true },
       });
-      const enriched = { ...message, giftName: data.giftName, giftIcon: data.giftIcon };
+      // Шлём одно сообщение из БД обоим — giftName и giftIcon уже внутри
       const rxSocket = activeConnections.get(data.receiverId);
-      if (rxSocket) io.to(rxSocket).emit('receive_message', enriched);
-      socket.emit('message_sent', enriched);
+      if (rxSocket) io.to(rxSocket).emit('receive_message', message);
+      socket.emit('message_sent', message);
     });
 
     // ─── Mark as read ─────────────────────────────────────────────────────
