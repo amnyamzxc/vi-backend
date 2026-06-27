@@ -1,0 +1,67 @@
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id           String        @id @default(uuid())
+  phone        String        @unique
+  username     String?       @unique
+  displayName  String?
+  avatarUrl    String?
+  stars        Int           @default(100)
+  createdAt    DateTime      @default(now())
+  
+  sentMessages     Message[] @relation("SentMessages")
+  receivedMessages Message[] @relation("ReceivedMessages")
+  
+  sentGifts     UserGift[] @relation("SentGifts")
+  receivedGifts UserGift[] @relation("ReceivedGifts")
+}
+
+model Message {
+  id         String   @id @default(uuid())
+  content    String
+  createdAt  DateTime @default(now())
+  senderId   String
+  receiverId String
+
+  sender   User @relation("SentMessages", fields: [senderId], references: [id])
+  receiver User @relation("ReceivedMessages", fields: [receiverId], references: [id])
+}
+
+model GiftTemplate {
+  id          String     @id @default(uuid())
+  name        String
+  type        String     
+  price       Int
+  icon        String     
+  totalStock  Int?       
+  remaining   Int?       
+  userGifts   UserGift[]
+}
+
+model UserGift {
+  id         String   @id @default(uuid())
+  giftId     String
+  senderId   String?
+  receiverId String
+  isNft      Boolean  @default(false)
+  nftNumber  String?  
+  nftSkin     String?
+  nftSkinChance Int?
+  nftBackground String?
+  nftBackgroundChance Int?
+  nftStyle    String?
+  nftBackgroundStyle String?
+  createdAt  DateTime @default(now())
+
+  gift     GiftTemplate @relation(fields: [giftId], references: [id])
+  sender   User?        @relation("SentGifts", fields: [senderId], references: [id])
+  receiver User         @relation("ReceivedGifts", fields: [receiverId], references: [id])
+}
