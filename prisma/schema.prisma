@@ -1,0 +1,120 @@
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id           String        @id @default(uuid())
+  phone        String        @unique
+  username     String?       @unique
+  displayName  String?
+  avatarUrl    String?
+  stars        Int           @default(100)
+  isOnline     Boolean       @default(false)
+  lastSeen     DateTime?
+  createdAt    DateTime      @default(now())
+  
+  sentMessages     Message[] @relation("SentMessages")
+  receivedMessages Message[] @relation("ReceivedMessages")
+  
+  sentGifts     UserGift[] @relation("SentGifts")
+  receivedGifts UserGift[] @relation("ReceivedGifts")
+
+  groupMemberships GroupMember[]
+  ownedGroups      Group[]       @relation("GroupOwner")
+  sentGroupMessages GroupMessage[]
+}
+
+model Message {
+  id         String   @id @default(uuid())
+  content    String
+  type       String   @default("text")
+  audioData  String?
+  isRead     Boolean  @default(false)
+  isEdited   Boolean  @default(false)
+  isDeleted  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  senderId   String
+  receiverId String
+
+  sender   User @relation("SentMessages", fields: [senderId], references: [id])
+  receiver User @relation("ReceivedMessages", fields: [receiverId], references: [id])
+}
+
+model Group {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  avatarUrl   String?
+  type        String   @default("group") // "group" | "channel"
+  createdAt   DateTime @default(now())
+  ownerId     String
+
+  owner    User           @relation("GroupOwner", fields: [ownerId], references: [id])
+  members  GroupMember[]
+  messages GroupMessage[]
+}
+
+model GroupMember {
+  id       String   @id @default(uuid())
+  groupId  String
+  userId   String
+  role     String   @default("member") // "owner" | "admin" | "member"
+  joinedAt DateTime @default(now())
+
+  group Group @relation(fields: [groupId], references: [id])
+  user  User  @relation(fields: [userId], references: [id])
+
+  @@unique([groupId, userId])
+}
+
+model GroupMessage {
+  id        String   @id @default(uuid())
+  content   String
+  type      String   @default("text")
+  audioData String?
+  isEdited  Boolean  @default(false)
+  isDeleted Boolean  @default(false)
+  createdAt DateTime @default(now())
+  groupId   String
+  senderId  String
+
+  group  Group @relation(fields: [groupId], references: [id])
+  sender User  @relation(fields: [senderId], references: [id])
+}
+
+model GiftTemplate {
+  id          String     @id @default(uuid())
+  name        String
+  type        String     
+  price       Int
+  icon        String     
+  totalStock  Int?       
+  remaining   Int?       
+  userGifts   UserGift[]
+}
+
+model UserGift {
+  id         String   @id @default(uuid())
+  giftId     String
+  senderId   String?
+  receiverId String
+  isNft      Boolean  @default(false)
+  nftNumber  String?  
+  nftSkin     String?
+  nftSkinChance Int?
+  nftBackground String?
+  nftBackgroundChance Int?
+  nftStyle    String?
+  nftBackgroundStyle String?
+  createdAt  DateTime @default(now())
+
+  gift     GiftTemplate @relation(fields: [giftId], references: [id])
+  sender   User?        @relation("SentGifts", fields: [senderId], references: [id])
+  receiver User         @relation("ReceivedGifts", fields: [receiverId], references: [id])
+}

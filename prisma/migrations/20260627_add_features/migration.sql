@@ -1,0 +1,59 @@
+-- Add isOnline, lastSeen to User
+ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "isOnline" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "lastSeen" TIMESTAMP(3);
+
+-- Add new columns to Message
+ALTER TABLE "Message" ADD COLUMN IF NOT EXISTS "type" TEXT NOT NULL DEFAULT 'text';
+ALTER TABLE "Message" ADD COLUMN IF NOT EXISTS "audioData" TEXT;
+ALTER TABLE "Message" ADD COLUMN IF NOT EXISTS "imageData" TEXT;
+ALTER TABLE "Message" ADD COLUMN IF NOT EXISTS "fileData" TEXT;
+ALTER TABLE "Message" ADD COLUMN IF NOT EXISTS "fileName" TEXT;
+ALTER TABLE "Message" ADD COLUMN IF NOT EXISTS "isRead" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "Message" ADD COLUMN IF NOT EXISTS "isEdited" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "Message" ADD COLUMN IF NOT EXISTS "isDeleted" BOOLEAN NOT NULL DEFAULT false;
+
+-- Create Group table
+CREATE TABLE IF NOT EXISTS "Group" (
+  "id" TEXT NOT NULL,
+  "name" TEXT NOT NULL,
+  "description" TEXT,
+  "avatarUrl" TEXT,
+  "type" TEXT NOT NULL DEFAULT 'group',
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "ownerId" TEXT NOT NULL,
+  CONSTRAINT "Group_pkey" PRIMARY KEY ("id")
+);
+
+-- Create GroupMember table
+CREATE TABLE IF NOT EXISTS "GroupMember" (
+  "id" TEXT NOT NULL,
+  "groupId" TEXT NOT NULL,
+  "userId" TEXT NOT NULL,
+  "role" TEXT NOT NULL DEFAULT 'member',
+  "joinedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT "GroupMember_pkey" PRIMARY KEY ("id")
+);
+
+-- Create GroupMessage table
+CREATE TABLE IF NOT EXISTS "GroupMessage" (
+  "id" TEXT NOT NULL,
+  "content" TEXT NOT NULL,
+  "type" TEXT NOT NULL DEFAULT 'text',
+  "audioData" TEXT,
+  "isEdited" BOOLEAN NOT NULL DEFAULT false,
+  "isDeleted" BOOLEAN NOT NULL DEFAULT false,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "groupId" TEXT NOT NULL,
+  "senderId" TEXT NOT NULL,
+  CONSTRAINT "GroupMessage_pkey" PRIMARY KEY ("id")
+);
+
+-- Foreign keys
+ALTER TABLE "Group" ADD CONSTRAINT IF NOT EXISTS "Group_ownerId_fkey" FOREIGN KEY ("ownerId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "GroupMember" ADD CONSTRAINT IF NOT EXISTS "GroupMember_groupId_fkey" FOREIGN KEY ("groupId") REFERENCES "Group"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "GroupMember" ADD CONSTRAINT IF NOT EXISTS "GroupMember_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "GroupMessage" ADD CONSTRAINT IF NOT EXISTS "GroupMessage_groupId_fkey" FOREIGN KEY ("groupId") REFERENCES "Group"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "GroupMessage" ADD CONSTRAINT IF NOT EXISTS "GroupMessage_senderId_fkey" FOREIGN KEY ("senderId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- Unique constraint
+CREATE UNIQUE INDEX IF NOT EXISTS "GroupMember_groupId_userId_key" ON "GroupMember"("groupId", "userId");
