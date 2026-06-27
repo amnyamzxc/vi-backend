@@ -15,17 +15,27 @@ export const setupChatSockets = (io: Server) => {
       await prisma.user.update({ where: { id: userId }, data: { isOnline: true, lastSeen: new Date() } }).catch(() => {});
       io.emit('user_online', { userId, isOnline: true });
     });
+Q
+    // ─── Get user status (новый обработчик) ─────────────────────────────
+    socket.on('get_user_status', async ({ userId }: { userId: string }) => {
+      const u = await prisma.user.findUnique({ where: { id: userId }, select: { isOnline: true, lastSeen: true } }).catch(() => null);
+      if (!u) return;
+      socket.emit('user_online', { userId, isOnline: u.isOnline, lastSeen: u.lastSeen });
+    });
 
     // ─── Private message ────────────────────────────────────────────────
     socket.on('send_message', async (data: {
       senderId: string; receiverId: string; content: string;
-      type?: string; audioData?: string;
+      type?: string; audioData?: string; imageData?: string; fileData?: string; fileName?: string;
     }) => {
       const message = await prisma.message.create({
         data: {
           content: data.content || '',
           type: data.type || 'text',
           audioData: data.audioData || null,
+          imageData: data.imageData || null,
+          fileData: data.fileData || null,
+          fileName: data.fileName || null,
           senderId: data.senderId,
           receiverId: data.receiverId,
           isRead: false,
@@ -35,7 +45,7 @@ export const setupChatSockets = (io: Server) => {
 
       const rxSocket = activeConnections.get(data.receiverId);
       if (rxSocket) io.to(rxSocket).emit('receive_message', message);
-      socket.emit('message_sent', message); // unique event for sender
+      socket.emit('message_sent', message);
     });
 
     // ─── Gift message ────────────────────────────────────────────────────
@@ -97,13 +107,17 @@ export const setupChatSockets = (io: Server) => {
 
     // ─── Group message ─────────────────────────────────────────────────────
     socket.on('send_group_message', async (data: {
-      groupId: string; senderId: string; content: string; type?: string; audioData?: string;
+      groupId: string; senderId: string; content: string; type?: string;
+      audioData?: string; imageData?: string; fileData?: string; fileName?: string;
     }) => {
       const msg = await prisma.groupMessage.create({
         data: {
           content: data.content || '',
           type: data.type || 'text',
           audioData: data.audioData || null,
+          imageData: data.imageData || null,
+          fileData: data.fileData || null,
+          fileName: data.fileName || null,
           groupId: data.groupId,
           senderId: data.senderId,
         },
@@ -153,11 +167,12 @@ export const setupChatSockets = (io: Server) => {
       for (const [uid, sid] of activeConnections.entries()) {
         if (sid === socket.id) {
           activeConnections.delete(uid);
+          const now = new Date();
           await prisma.user.update({
             where: { id: uid },
-            data: { isOnline: false, lastSeen: new Date() },
+            data: { isOnline: false, lastSeen: now },
           }).catch(() => {});
-          io.emit('user_online', { userId: uid, isOnline: false });
+          io.emit('user_online', { userId: uid, isOnline: false, lastSeen: now });
           break;
         }
       }
